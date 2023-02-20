@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.NoSuchElementException;
 
 /**
  * JDBC - DriverManger 사용
@@ -40,6 +41,38 @@ public class MemberRepositoryV0 {
         }
     }
 
+    public Member findById(String memberId) throws SQLException {
+        String sql = "select * from member where member_id = ?";
+
+        // try-catch문 밖에서도 값이 전달되어야하므로 선언 필요
+        Connection con = null;
+        PreparedStatement psmt = null;
+        ResultSet rs = null;
+        // Result set
+        // : 쿼리 결과가 순서대로 들어간 데이터 객체
+        // 내부의 커서로 컬럼 하나씩을 가져옴 (다음 : rs.next() == true : 데이터가 있음)
+        // getString / getInt 로 값을 반환할 수 있음
+        try {
+            con = getConnection();
+            psmt = con.prepareStatement(sql);
+            psmt.setString(1, memberId);
+            rs = psmt.executeQuery();// select 문에서는 결과가 나와야하므로
+            if (rs.next()) { // 값을 가져와 매핑해 줌
+                Member member = new Member();
+                member.setMemberId(rs.getString("member_id"));
+                member.setMoney(rs.getInt("money"));
+                return member;
+            } else {
+                throw new NoSuchElementException("member not found");
+            }
+        } catch (SQLException e) {
+            log.error("db error", e);
+            throw e;
+        } finally {
+            close(con, psmt, rs);
+        }
+    }
+
     private void close(Connection con, Statement stmt, ResultSet rs) {
         // exception이 터지더라도 다 작동이 되게끔
         if (rs != null) {
@@ -50,8 +83,7 @@ public class MemberRepositoryV0 {
             }
         }
 
-        if (stmt != null) {
-            try {
+        if (stmt != null) {            try {
                 stmt.close(); // Exception
             } catch (SQLException e) {
                 log.info("error", e);
